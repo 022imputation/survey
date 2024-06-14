@@ -11,6 +11,10 @@ from helpers.utils.projections import projections_dict, plot_scatter
 
 
 def get_y_pred_uncertain_str():
+    """
+    Returns a list of string representations of the elements in 'y_pred_uncertain' from the session state.
+    If an element is None, it is returned as None in the resulting list.
+    """
     return [str(y_pred) if y_pred is not None else None for y_pred in st.session_state['y_pred_uncertain']]
 
 
@@ -80,7 +84,7 @@ else:
                     value = st.number_input("", st.session_state['min_value'] - 3 * dataset_settings['precision'],
                                       st.session_state['max_value'] + 3 * dataset_settings['precision'],
                                       step=dataset_settings['precision'], key='numerical_input', format='%.3f',
-                                            args=[df_incomplete, incomplete_column])
+                                            args=[df_incomplete, incomplete_column], value=st.session_state['slider_value'])
                 with col3:
                     if st.button('Submit'):
                         st.session_state['imputed_values'][current_null_index] = value
@@ -93,29 +97,43 @@ else:
 
             else:
                 # Iteration finished
-                na_indexes = list(st.session_state['imputed_values'].keys())
-                global_means = impute_global_mean(df_incomplete, incomplete_column, na_indexes)
+                na_indexes    = list(st.session_state['imputed_values'].keys())
+                global_means  = impute_global_mean(df_incomplete, incomplete_column, na_indexes)
                 cluster_means = impute_cluster_mean(df_incomplete, incomplete_column, na_indexes)
-                knn = impute_knn_mean(df_incomplete, incomplete_column, na_indexes, reference_columns)
-                cluster_knn = impute_cluster_knn_mean(df_incomplete, incomplete_column, na_indexes, reference_columns)
-
+                knn           = impute_knn_mean(df_incomplete, incomplete_column, na_indexes, reference_columns)
+                cluster_knn   = impute_cluster_knn_mean(df_incomplete, incomplete_column, na_indexes, reference_columns)
                 real_values = st.session_state[f'ds_{dataset_settings["name"]}'][incomplete_column][na_indexes].tolist()
-
-                rows = ["Annotator", "Mean", "Cluster mean", "knn", "cluster knn"]
+                rows        = ["Annotator", "Mean", "Cluster mean", "knn", "cluster knn"]
                 imputations = [st.session_state['imputed_values'], global_means, cluster_means, knn, cluster_knn]
+
+                columns     = list(imputations[0])
+                imputed_algorithm_values = [list(imputation.values()) for imputation in imputations]
+                imputed_algorithm_df     = pd.DataFrame(imputed_algorithm_values[0], columns=[rows[0]], index=columns)
+                for i in range(1, len(imputed_algorithm_values)):
+                    imputed_algorithm_df[rows[i]] = imputed_algorithm_values[i]
+                imputed_algorithm_df['real'] = real_values
+
                 MAE = [mean_absolute_error(list(imputation.values()), real_values) for imputation in imputations]
                 RMSE = [mean_squared_error(list(imputation.values()), real_values, squared=False) for imputation in
                         imputations]
                 results = pd.DataFrame(MAE, columns=["MAE"], index=rows)
                 results["RMSE"] = RMSE
+                st.markdown('## Score comparison')
                 st.table(results)
+                st.markdown('## Imputation comparison')
+                st.table(imputed_algorithm_df)
 
                 if st.button("OK, SAVE RESULTS"):
                     st.session_state['started'] = False
                     save_results(st.session_state['imputed_values'],
+                                 global_means,
+                                 cluster_means,
+                                 knn,
+                                 cluster_knn,
                                  st.session_state['dataset_generation_seed'],
                                  dataset_name_selectbox,
-                                 na_fraction_selectbox)
+                                 na_fraction_selectbox,
+                                 projection_key)
 
                     st.success('Your answers have been saved')
                     st.balloons()

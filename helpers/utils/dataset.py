@@ -24,27 +24,53 @@ def add_projection_dimensions_to_df_incomplete(projection_key, X, df):
 @st.cache
 # TODO: adapt for other clustering method than k-means
 def find_uncertain_y_indexes(X, n_clusters, fuzzy_certainty_thres=0.5):
-    fuzzy_labels = fuzzy_kmeans_fit_predict(X, n_clusters)
-    max_labels = fuzzy_labels.max(axis=1)
+    fuzzy_labels   = fuzzy_kmeans_fit_predict(X, n_clusters)
+    max_labels     = fuzzy_labels.max(axis=1)
     filter_indexes = max_labels < fuzzy_certainty_thres
-    indexes = [ind for ind, element in enumerate(filter_indexes) if element == True]
+    indexes        = [ind for ind, element in enumerate(filter_indexes) if element == True]
     return indexes
 
 @st.cache
 def find_uncertain_y_indexes(df_incomplete, dataset_settings, na_indexes):
     incomplete_column = dataset_settings['incomplete_column']
-    knn = impute_knn_mean(df_incomplete, incomplete_column, na_indexes, dataset_settings['reference_columns'])
-    real_values = st.session_state[f'ds_{dataset_settings["name"]}'][incomplete_column][na_indexes].tolist()
-    indexes = abs(pd.Series(knn) - real_values).sort_values().index.tolist()[-15:]
+    knn               = impute_knn_mean(df_incomplete, incomplete_column, na_indexes, dataset_settings['reference_columns'])
+    real_values       = st.session_state[f'ds_{dataset_settings["name"]}'][incomplete_column][na_indexes].tolist()
+    # For testing, I recommend changing the number of indexes to be returned (Default: 15).
+    indexes           = abs(pd.Series(knn) - real_values).sort_values().index.tolist()[-15:] 
     return indexes
 
 
-def save_results(values, seed, dataset_name, na_fraction):
+def save_results(human_imputation, mean_imputation, cluster_mean_imputation, knn_imputation, cluster_knn_imputation, seed, dataset_name, na_fraction, projection_key):
+    """
+    Save the imputation results to a Google Sheet using the API.
+
+    This version of save results is used in streamlit_app.py, and for some reason it serves 
+    as a proxy for a second declaration of the same function in the api.py file.
+
+    Parameters:
+    - human_imputation (str): The human imputation result.
+    - mean_imputation (str): The mean imputation result.
+    - cluster_mean_imputation (str): The cluster mean imputation result.
+    - knn_imputation (str): The k-nearest neighbors imputation result.
+    - cluster_knn_imputation (str): The cluster k-nearest neighbors imputation result.
+    - seed (int): The random seed used for imputation.
+    - dataset_name (str): The name of the dataset.
+    - na_fraction (float): The fraction of missing values in the dataset.
+    - projection_key (str): The key of the projection used for the imputation.
+
+    Returns:
+    None
+    """
     api.save_results(
         st.session_state["gsheet"],
-        values,
+        human_imputation,
+        mean_imputation,
+        cluster_mean_imputation,
+        knn_imputation,
+        cluster_knn_imputation,
         st.session_state['id'],
         seed,
         dataset_name,
-        na_fraction
+        na_fraction,
+        projection_key
     )

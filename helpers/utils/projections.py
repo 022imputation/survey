@@ -54,12 +54,17 @@ def plot_scatter(df, incomplete_column, reference_columns, current_null_index, s
                      width=800
                      )
 
+    #single_point = df.loc[[current_null_index]].copy(deep=True)
+    #single_point = pd.concat([single_point] * len(slider_values), ignore_index=True)
+    #single_point[incomplete_column] = slider_values
     single_point = df.loc[[current_null_index]].copy(deep=True)
-    single_point = pd.concat([single_point] * len(slider_values), ignore_index=True)
-    single_point[incomplete_column] = slider_values
+    slider_value = st.slider("Slider", min_value=min_value, max_value=max_value, step=0.1)
+    st.session_state['slider_value'] = slider_value
+    single_point[incomplete_column]  = slider_value
+
     trace_annotation = px.scatter(single_point, x="x", y="y",
                      color=incomplete_column,
-                     animation_frame=incomplete_column,
+                     #animation_frame=incomplete_column,
                      color_continuous_scale=px.colors.sequential.Inferno,
                      range_color=(min_value, max_value),
                      symbol_map={"uncertain": "x"},
@@ -71,15 +76,11 @@ def plot_scatter(df, incomplete_column, reference_columns, current_null_index, s
                     )
     fig = trace_annotation
     fig.add_traces(trace_points.data)
-
     fig.update_traces(textposition='top center', textfont_size=8,
-                      textfont_color="#636363", marker_size=12
-                      )
+                      textfont_color="#636363", marker_size=12)
     fig.layout.pop("updatemenus")
-
-
     fig.layout.showlegend = False
-    # fig.update_layout(hovermode="incomplete_column")
+
     add_annotation(fig, uncertain_x, uncertain_y)
 
     scatter = st.plotly_chart(fig, key="scatter")

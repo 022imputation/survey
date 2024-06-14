@@ -36,6 +36,19 @@ def init_session_state(datasets_settings):
 
 
 def calculate_y_pred_uncertain(df_incomplete, dataset_settings):
+    """
+    Calculate the predicted y values and border points for incomplete data.
+
+    Args:
+        df_incomplete (pandas.DataFrame): The DataFrame containing incomplete data.
+        dataset_settings (dict): A dictionary containing dataset settings.
+
+    Returns:
+        tuple: A tuple containing the following:
+            - X (numpy.ndarray): The normalized feature matrix.
+            - y_pred (numpy.ndarray): The predicted cluster labels.
+            - border_points (list): The indices of the border points.
+    """
     X = df_incomplete[dataset_settings['reference_columns']]
     X = X.apply(lambda x: x / x.max(), axis=0).values
 
@@ -43,7 +56,7 @@ def calculate_y_pred_uncertain(df_incomplete, dataset_settings):
     kmeans.fit(X)
     y_pred = kmeans.predict(X)
 
-    incomplete_indexes = df_incomplete[df_incomplete[dataset_settings['incomplete_column']].isnull()].index.tolist()
+    incomplete_indexes  = df_incomplete[df_incomplete[dataset_settings['incomplete_column']].isnull()].index.tolist()
     uncertain_y_indexes = find_uncertain_y_indexes(df_incomplete, dataset_settings, incomplete_indexes)
 
     border_points = list(set(uncertain_y_indexes).intersection(incomplete_indexes))
@@ -52,6 +65,17 @@ def calculate_y_pred_uncertain(df_incomplete, dataset_settings):
 
 
 def init_new_annotation_task(dataset_settings):
+    """
+    Initializes a new annotation task by generating an incomplete dataset, calculating uncertainty predictions,
+    and setting session state variables.
+
+    Args:
+        dataset_settings (dict): A dictionary containing the settings for the dataset.
+
+    Returns:
+        pandas.DataFrame: The generated incomplete dataset.
+    """
+
     st.session_state['dataset_generation_seed'] = int(time.time())
 
     incomplete_column = dataset_settings['incomplete_column']
